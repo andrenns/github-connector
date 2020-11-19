@@ -1,0 +1,18 @@
+version: "3.8"
+services:
+    flask-app:
+        build:
+          context: .
+          dockerfile: Dockerfile
+        ports:
+            - "5000:5000"
+        depends_on:
+          - mariadb
+        volumes:
+            - ${PROJECT_RELATIVE_PATH}:/github-connector:delegated
+    mariadb:
+      image: mariadb:10.3
+      environment:
+        - MYSQL_ROOT_PASSWORD=${DB_ROOT_PWD}
+      ports:
+        - "${DB_PORT}:3306"
