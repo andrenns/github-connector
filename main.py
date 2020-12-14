@@ -1,16 +1,10 @@
-from flask import json
+from flask import json, jsonify
 from flask import request
 from flask import Flask
-from helper.dataHelper import translate_data
-from entities.shared.models import db
+from youtrack.connection import Connection as YouTrack
+import xml
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@mariadb:3306/repo_actions'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_POOL_RECYCLE'] = 2000
-db.init_app(app)
-with app.app_context():
-    db.create_all()
 
 
 @app.route('/')
@@ -18,12 +12,13 @@ def api_root():
     return 'Welcome guys'
 
 
-@app.route('/github', methods=['POST'])
-def api_github_message():
-    if request.headers['Content-type'] == 'application/json':
-        github_data = json.dumps(request.json)
-        translate_data(github_data)
-        return github_data
+@app.route('/youtrack', methods=['GET', 'POST'])
+def youtrack_vcs_changes():
+    yt = YouTrack('https://mse.myjetbrains.com/youtrack/', token='perm:YW5kcmVudW5lcw==.NTQtMA==.8jj0Ch0TOfyqVVHWgNcxdhLVC2BioO')
+    issue = yt._reqXml('GET', "/issue/" + 'MSEDO-244') #needs to be verified and added api to url
+    obj = issue.documentElement
+    print(obj)
+    return jsonify(obj)
 
 
 if __name__ == '__main__':
