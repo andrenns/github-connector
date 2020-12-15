@@ -1,5 +1,2 @@
 flask
-Flask-SQLAlchemy
-PyMySQL
 pyarango
-youtrack
