@@ -7,7 +7,7 @@ app = Flask(__name__)
 @app.route('/')
 def api_root():
     save_vcs_changes()
-    return 'succes'
+    return 'success'
 
 
 if __name__ == '__main__':
