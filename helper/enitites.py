@@ -47,4 +47,30 @@ class VcsChanges(Collection):
         return "<VcsChange({} - {} - {})>".format(self.id, self.timestamp, self.type)
 
 
+class Issue(Collection):
+    __collection__ = 'issue'
 
+    _allow_extra_fields = False
+
+    id_readable = String(required=True)
+    tittle = String(required=True)
+    id = String(required=True)
+    type = String(required=True)
+
+    def __str__(self):
+        return "<Issue({} - {})>".format(self.id_readable, self.tittle)
+
+
+class IssueHasVcsChanges(Collection):
+    __collection__ = 'issue_has_vcsChanges'
+
+    _allow_extra_fields = False
+
+    issue_key = String()
+    vcs_change_key = String()
+
+    issue = relationship(Issue, 'issue_key', cache=False)
+    vcs_change = relationship(VcsChanges, 'vcs_change_key', cache=False)
+
+    def __str__(self):
+        return "<IssueHasVcsChange({} - {})>".format(self.issue_key, self.vcs_change_key)

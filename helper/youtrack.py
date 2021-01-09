@@ -2,8 +2,8 @@ import requests
 import json
 
 
-def get_issue_ids():
-    url = 'https://mse.myjetbrains.com/youtrack/api/issues?fields=id'
+def get_issue(issue_id):
+    url = f'https://mse.myjetbrains.com/youtrack/api/issues/{issue_id}?fields=$type,id,summary,idReadable'
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -11,11 +11,7 @@ def get_issue_ids():
     }
 
     response = requests.request('GET', url, headers=headers, data={})
-    issues = json.loads(response.text)
-    ids = []
-    for issue in issues:
-        ids.append(issue['id'])
-    return ids
+    return json.loads(response.text)
 
 
 def get_all_vcs_changes():
