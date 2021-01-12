@@ -3,6 +3,7 @@ from arango import ArangoClient
 from arango_orm import Database
 from helper.enitites import VcsChanges, Author, Target, Issue, IssueHasVcsChanges
 import re
+from arango.exceptions import DocumentInsertError
 
 
 def create_connection_db(db):
@@ -20,6 +21,18 @@ def create_if_not_exists():
             db.create_collection(col)
 
 
+def check_existence_save(db, doc, collection_class, has_filters=True, filter_name='', filter_value=''):
+    try:
+        db.add(doc)
+        return doc
+    except DocumentInsertError:
+        if has_filters:
+            author = db.query(collection_class).filter(f'{filter_name}==@filter', filter=filter_value).first()
+            return author
+        else:
+            return True
+
+
 def save_vcs_changes():
     create_if_not_exists()
     vcs_changes = get_all_vcs_changes()
@@ -29,24 +42,26 @@ def save_vcs_changes():
         # save authors
         author = Author(name=changes['author']['name'],
                         login=changes['author']['login'],
-                        type=changes['author']['$type']
+                        type=changes['author']['$type'],
+                        id=changes['author']['id']
                         )
-        db.add(author)
+        author = check_existence_save(db, author, Author, True, 'id', changes['author']['id'])
         # save targets
         target = Target(text=changes['target']['text'],
                         id=changes['target']['id'],
                         type=changes['target']['$type']
                         )
-        db.add(target)
+        target = check_existence_save(db, target, Target, True, 'id', changes['target']['id'])
+
         # save vcs_changes
         vcs_change = VcsChanges(
-                        author_key=author._key,
-                        id=changes['id'],
-                        timestamp=changes['timestamp'],
-                        target_key=target._key,
-                        type=changes['$type']
-                        )
-        db.add(vcs_change)
+            author_key=author._key,
+            id=changes['id'],
+            timestamp=changes['timestamp'],
+            target_key=target._key,
+            type=changes['$type']
+        )
+        vcs_change = check_existence_save(db, vcs_change, VcsChanges, True, 'id', changes['id'])
         # get the issue id from the target text
         found_ids = re.findall(r"MSEDO-\d+", changes['target']['text'])
         # remove the duplicates
@@ -58,11 +73,12 @@ def save_vcs_changes():
                 if "error" in issue_dict:
                     # save issues with error
                     issue = Issue(
-                        id_readable=issue_dict['error'],
+                        id_readable=issue_id,
                         tittle=issue_dict['error_description'],
                         id=issue_dict['error'],
                         type=issue_dict['error']
                     )
+                    issue = check_existence_save(db, issue, Issue, True, 'id_readable', issue_id)
                 else:
                     # save issues
                     issue = Issue(
@@ -71,10 +87,10 @@ def save_vcs_changes():
                         id=issue_dict['id'],
                         type=issue_dict['id']
                     )
-                db.add(issue)
+                    issue = check_existence_save(db, issue, Issue, True, 'id_readable', issue_dict['idReadable'])
                 # save relation between issues and changes
                 issue_change = IssueHasVcsChanges(
                     issue_key=issue._key,
                     vcs_change_key=vcs_change._key
                 )
-                db.add(issue_change)
+                check_existence_save(db, issue_change, IssueHasVcsChanges, False)

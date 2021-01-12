@@ -15,7 +15,7 @@ def get_issue(issue_id):
 
 
 def get_all_vcs_changes():
-    url = 'https://mse.myjetbrains.com/youtrack/api/activities?fields=id,author(name,login),timestamp,target(id,' \
+    url = 'https://mse.myjetbrains.com/youtrack/api/activities?fields=id,author(id,name,login),timestamp,target(id,' \
           'text),authorGroup(id,name)&categories=VcsChangeCategory,ActivityCategory '
 
     headers = {
