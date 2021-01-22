@@ -1,20 +1,21 @@
-from helper.youtrack import get_all_vcs_changes, get_issue
+from helper.youtrack import get_all_state_transitions
 from arango import ArangoClient
 from arango_orm import Database
-from helper.enitites import VcsChanges, Author, Target, Issue, IssueHasVcsChanges
+from helper.enitites import StateTransition, Author, Issue, IssueHasStateTransition, AuthorDidStateTransition
 import re
 from arango.exceptions import DocumentInsertError
+from helper.env_reader import ENV
 
 
 def create_connection_db(db):
-    client = ArangoClient(hosts='http://arangodb:8529')
-    db = Database(client.db(db, username='root', password='root'))
+    client = ArangoClient(hosts=ENV['ARANGODB_HOST'])
+    db = Database(client.db(db, username=ENV['ARANGODB_USER'], password=ENV['ARANGODB_PWD']))
     return db
 
 
 def create_if_not_exists():
-    db = create_connection_db("processDiscovery")
-    collections = [Author, Target, VcsChanges, Issue, IssueHasVcsChanges]
+    db = create_connection_db(ENV['ARANGODB_DBNAME'])
+    collections = [Author, Issue, StateTransition, IssueHasStateTransition, AuthorDidStateTransition]
 
     for col in collections:
         if not db.has_collection(col):
@@ -24,7 +25,7 @@ def create_if_not_exists():
 def check_existence_save(db, doc, collection_class, has_filters=True, filter_name='', filter_value=''):
     try:
         db.add(doc)
-        return doc
+        return db.add(doc)
     except DocumentInsertError:
         if has_filters:
             author = db.query(collection_class).filter(f'{filter_name}==@filter', filter=filter_value).first()
@@ -33,64 +34,58 @@ def check_existence_save(db, doc, collection_class, has_filters=True, filter_nam
             return True
 
 
+def check_transition_values(transitions):
+    if isinstance(transitions['added'], list) and not transitions['added']:
+        if transitions['removed']:
+            transitions['added'] = [{'$type': transitions['removed'][0]['$type'], 'name':'NONE'}]
+    elif isinstance(transitions['removed'], list) and not transitions['removed']:
+        if transitions['added']:
+            transitions['removed'] = [{'$type': transitions['added'][0]['$type'], 'name':'NONE'}]
+    elif not isinstance(transitions['added'], list) and not isinstance(transitions['removed'], list):
+        transitions['added'] = [{'$type': 'NONE', 'name': 'NONE'}]
+        transitions['removed'] = [{'$type': 'NONE', 'name': 'NONE'}]
+    return transitions
+
+
 def save_vcs_changes():
     create_if_not_exists()
-    vcs_changes = get_all_vcs_changes()
+    state_transitions = get_all_state_transitions()
     db = create_connection_db("processDiscovery")
 
-    for changes in vcs_changes:
-        # save authors
-        author = Author(name=changes['author']['name'],
-                        login=changes['author']['login'],
-                        type=changes['author']['$type'],
-                        id=changes['author']['id']
-                        )
-        author = check_existence_save(db, author, Author, True, 'id', changes['author']['id'])
-        # save targets
-        target = Target(text=changes['target']['text'],
-                        id=changes['target']['id'],
-                        type=changes['target']['$type']
-                        )
-        target = check_existence_save(db, target, Target, True, 'id', changes['target']['id'])
+    for transitions in state_transitions:
+        transitions = check_transition_values(transitions)
+        if transitions['added'][0]['$type'] == 'StateBundleElement' \
+                or transitions['removed'][0]['$type'] == 'StateBundleElement':
+            author = Author(name=transitions['author']['name'],
+                            login=transitions['author']['login'],
+                            type=transitions['author']['$type'],
+                            id=transitions['author']['id']
+                            )
+            author = check_existence_save(db, author, Author, True, 'id', transitions['author']['id'])
+            # save state_transition
+            state_transition = StateTransition(
+                            id=transitions['id'],
+                            timestamp=transitions['timestamp'],
+                            old_value=transitions['removed'][0]['name'],
+                            new_value=transitions['added'][0]['name']
+                            )
+            state_transition = check_existence_save(db, state_transition, StateTransition, True, 'id', transitions['id'])
+            # save author_did_state_transition
+            author_did_state_transition = AuthorDidStateTransition(
+                author_key=author._key,
+                state_transition_key=state_transition._key,
+            )
+            check_existence_save(db, author_did_state_transition, AuthorDidStateTransition, False)
+            issue = Issue(
+                id_readable=transitions['target']['idReadable'],
+                tittle=transitions['target']['summary'],
+                id=transitions['target']['id'],
+            )
+            issue = check_existence_save(db, issue, Issue, True, 'id_readable', transitions['target']['idReadable'])
 
-        # save vcs_changes
-        vcs_change = VcsChanges(
-            author_key=author._key,
-            id=changes['id'],
-            timestamp=changes['timestamp'],
-            target_key=target._key,
-            type=changes['$type']
-        )
-        vcs_change = check_existence_save(db, vcs_change, VcsChanges, True, 'id', changes['id'])
-        # get the issue id from the target text
-        found_ids = re.findall(r"MSEDO-\d+", changes['target']['text'])
-        # remove the duplicates
-        issues_ids = list(set(found_ids))
-        # get the issue from youtrack
-        if issues_ids:
-            for issue_id in issues_ids:
-                issue_dict = get_issue(issue_id)
-                if "error" in issue_dict:
-                    # save issues with error
-                    issue = Issue(
-                        id_readable=issue_id,
-                        tittle=issue_dict['error_description'],
-                        id=issue_dict['error'],
-                        type=issue_dict['error']
-                    )
-                    issue = check_existence_save(db, issue, Issue, True, 'id_readable', issue_id)
-                else:
-                    # save issues
-                    issue = Issue(
-                        id_readable=issue_dict['idReadable'],
-                        tittle=issue_dict['summary'],
-                        id=issue_dict['id'],
-                        type=issue_dict['id']
-                    )
-                    issue = check_existence_save(db, issue, Issue, True, 'id_readable', issue_dict['idReadable'])
-                # save relation between issues and changes
-                issue_change = IssueHasVcsChanges(
-                    issue_key=issue._key,
-                    vcs_change_key=vcs_change._key
-                )
-                check_existence_save(db, issue_change, IssueHasVcsChanges, False)
+            # save author_did_state_transition
+            issue_has_state_transition = IssueHasStateTransition(
+                issue_key=issue._key,
+                state_transition_key=state_transition._key,
+            )
+            check_existence_save(db, issue_has_state_transition, IssueHasStateTransition, False)
