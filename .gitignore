@@ -2,3 +2,5 @@ venv/
 .idea/
 github-connector/
 .env
+__pycache__/
+helper/__pycache__/
