@@ -25,11 +25,11 @@ def create_if_not_exists():
 def check_existence_save(db, doc, collection_class, has_filters=True, filter_name='', filter_value=''):
     try:
         db.add(doc)
-        return db.add(doc)
+        return doc
     except DocumentInsertError:
         if has_filters:
-            author = db.query(collection_class).filter(f'{filter_name}==@filter', filter=filter_value).first()
-            return author
+            doc = db.query(collection_class).filter(f'{filter_name}==@filter', filter=filter_value).first()
+            return doc
         else:
             return True
 
