@@ -9,7 +9,7 @@ def get_all_state_transitions():
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + ENV['ARANGODB_TOKEN']
+        'Authorization': 'Bearer ' + ENV['YOUTRACK_TOKEN']
     }
 
     response = requests.request('GET', url, headers=headers, data={})
