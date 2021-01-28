@@ -1,12 +1,14 @@
 from flask import Flask, json
 from helper.arango import save_vcs_changes
+from helper.process_discovery import run_inductive_miner
 
 app = Flask(__name__)
 
 
 @app.route('/')
 def api_root():
-    save_vcs_changes()
+    run_inductive_miner()
+    # save_vcs_changes()
     return 'success'
 
 
