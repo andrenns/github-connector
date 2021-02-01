@@ -1,4 +1,3 @@
-
 from arango_orm.fields import String, Date, Integer, Boolean
 from arango_orm import Collection, Relation, Graph, GraphConnection
 from arango_orm.references import relationship
@@ -6,7 +5,7 @@ from arango_orm.references import relationship
 
 class Author(Collection):
     __collection__ = 'author'
-    _index = [{'type': 'hash', 'fields': ['id'], 'unique':True}]
+    _index = [{'type': 'hash', 'fields': ['id'], 'unique': True}]
 
     name = String(required=True, allow_none=False)
     login = String(required=True)
@@ -76,3 +75,18 @@ class IssueHasStateTransition(Collection):
 
     def __str__(self):
         return "<IssueHasStateTransition({} - {})>".format(self.issue_key, self.state_transition_key)
+
+
+class AnalysisResult(Collection):
+    __collection__ = 'analysis_result'
+    _index = [{'type': 'hash', 'fields': ['timestamp', 'analysis_result_file_name'], 'unique': True}]
+
+    _allow_extra_fields = False
+
+    data_file_name = String(required=True)
+    analysis_result_file_name = String(required=True)
+    timestamp = String(required=True)
+
+    def __str__(self):
+        return "<AnalysisResult({} - {} - {})>".format(self.data_file_name, self.analysis_result_file_name,
+                                                       self.timestamp)

@@ -7,9 +7,14 @@ app = Flask(__name__)
 
 @app.route('/')
 def api_root():
-    run_inductive_miner()
-    # save_vcs_changes()
+    save_vcs_changes()
     return 'success'
+
+
+@app.route('/inductive-miner')
+def inductive_miner():
+    run_inductive_miner()
+    return 'algorithm executed with succes'
 
 
 if __name__ == '__main__':
