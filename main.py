@@ -1,6 +1,6 @@
 from flask import Flask, json
 from helper.arango import save_vcs_changes
-from helper.process_discovery import run_inductive_miner
+from helper.process_discovery import run_dfg
 
 app = Flask(__name__)
 
@@ -13,7 +13,7 @@ def api_root():
 
 @app.route('/inductive-miner')
 def inductive_miner():
-    run_inductive_miner()
+    run_dfg()
     return 'algorithm executed with succes'
 
 
