@@ -1,6 +1,6 @@
 from flask import Flask, json
 from helper.arango import save_vcs_changes
-from helper.process_discovery import run_dfg
+from helper.process_discovery import run_dfg, run_heuristics_miner
 
 app = Flask(__name__)
 
@@ -11,9 +11,15 @@ def api_root():
     return 'success'
 
 
-@app.route('/inductive-miner')
-def inductive_miner():
+@app.route('/dfg')
+def dfg():
     run_dfg()
+    return 'algorithm executed with succes'
+
+
+@app.route('/heuristic-miner')
+def heuristic_miner():
+    run_heuristics_miner()
     return 'algorithm executed with succes'
 
 
